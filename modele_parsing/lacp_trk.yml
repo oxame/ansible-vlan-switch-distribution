@@ -1,0 +1,7 @@
+---
+- example: Pas exemple
+  #getval: '^(?P<P>\w+\s\w+)\W+(?P<P2>\w+\s\w+\s\w+\s\w+\W\s+\w+\W\w+)'
+  getval: '.*\s(?P<P>\w+)$'
+  result:
+    "{{ P }}":
+      P: "{{ P }}"

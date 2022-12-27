@@ -1,0 +1,84 @@
+- hosts: distri
+  ignore_unreachable: true
+  vars:
+    tempo: "VLAN vers coeur"
+    ansible_connection: network_cli
+  collections:
+    - arubanetworks.aos_switch
+  tasks:
+      # Contrôle des arguments
+
+    - name: Contrôle argument ajout_vlan
+      fail: msg="Pas de liste ajout_vlan en argument"
+      when: ajout_vlan is not defined
+    
+    - name: Contrôle des arguments
+      fail: msg="Nombre d'arguments différents entre les noms et les VLANs"
+      when: ajout_vlan|length != nom_vlan|length
+
+    - name: Récupération LLDP
+      register: show_trunks_cmd_out
+      arubaoss_command:
+        commands: ['show trunks']
+
+    - name: Debug show_trunk
+      debug:
+        msg:  "{{ show_trunks_cmd_out }}" 
+
+    - name: Recuperation des trunks
+      set_fact: 
+        List_Trunk: "{{ show_trunks_cmd_out.stdout[0] | regex_findall('Trk[0-9]{1,2}') | unique | list }}"
+
+    - name: Debug show_trunk
+      debug:
+        msg:  "{{ List_Trunk }}"     
+
+# Récupération des VLANs pour Coeur + opt_interfaces_vers_coeur
+    - name: Récupération des VLANs
+      register: show_vlans_ports_interfaces_detail_cmd_out
+      arubaoss_command:
+        commands: ["show vlans ports {{ List_Trunk | join(',') }} detail" ]
+
+    - name: Debug Récupération des VLANs
+      debug:
+        msg:  "{{ show_vlans_ports_interfaces_detail_cmd_out }}" 
+
+    - name: Parsage des VLANs
+      ansible.utils.cli_parse:
+        text: "{{ show_vlans_ports_interfaces_detail_cmd_out.stdout[0] }}"
+        parser:
+          name: ansible.netcommon.native
+          template_path: /ansible/modele_parsing/switch-vlans.yml
+        set_fact: switch_vlans_info
+
+    - name: Debug switch_vlans_info
+      debug:
+        msg:  "{{ switch_vlans_info }}"
+
+    # Génère un dictionnaire port / ports manquants
+    - name: Comparaison des VLANs
+      set_fact:
+        vlan_manquant: "{{ vlan_manquant|default({}) | combine( { item: ajout_vlan | difference (switch_vlans_info[item] | dict2items | map(attribute='key') | list) | list} ) }}"
+      loop: "{{ switch_vlans_info.keys()|list }}"
+
+    - name: Debug vlan_manquant
+      debug:
+        msg:  "{{ vlan_manquant }}"
+
+    - name: Ajout des VLANs
+      arubaoss_command:
+        commands: ["system-view","vlan {{ item.0 }}",'name "{{ item.1 }}"',"exit","dhcp-snooping vlan {{ item.0 }}" ]
+      with_together:
+        - "{{ ajout_vlan }}"
+        - "{{ nom_vlan }}"
+
+    - name: Ajout des vlans sur les interfaces
+      arubaoss_command:
+        commands: ["system-view","interface {{ item }} tagged vlan {{ vlan_manquant[item] | join(',') }}"]
+      loop: "{{ vlan_manquant.keys()|list }}"
+      when: vlan_manquant[item]|length != 0
+
+    - name: Sauvegardes de la configuration
+      arubaoss_command:
+        commands: ["save"]
+

@@ -1,0 +1,12 @@
+- example: Pas exemple
+  getval: '\W+Local Port.+?(?=: )\W+(?P<port>\S+)'
+  result:
+    "{{ port }}":
+      port: "{{ port }}"
+  shared: true
+
+- example: Pas exemple
+  getval: '\W+((?P<type>ChassisType|Local Port|ChassisId|PortType|PortId|SysName|System Descr|PortDescr|Pvid).+?(?=: )\W+(?P<valeur>.+?(?=\s{2})))'
+  result:
+    "{{ port }}":
+      "{{ type }}" : "{{ valeur }}"

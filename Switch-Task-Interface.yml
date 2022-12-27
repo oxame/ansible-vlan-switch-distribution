@@ -1,0 +1,27 @@
+---
+- name: Debug passage parametre
+  debug:
+    msg: "Vars: {{ Var_Vlan }} {{ Var_Zone }}"
+
+
+- name: assqigne interface pour zone metier
+  set_fact:
+    Interface: "1,2"
+  when: '"metier" in Var_Zone'
+
+- name: assqigne interface pour zone metier
+  set_fact:
+    Interface: "3,4"
+  when: '"lan" in Var_Zone'
+
+- name: Debug Interface
+  debug:
+    msg: "Interface: {{ Interface }}"
+
+- name: Ajout des vlans sur les interfaces
+  arubaoss_command:
+    commands: ["system-view","interface {{ Interface }} tagged vlan {{ Var_Vlan }}" ]
+
+- name: Sauvegardes de la configuration
+  arubaoss_command:
+    commands: ["save"]

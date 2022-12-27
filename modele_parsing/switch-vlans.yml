@@ -1,0 +1,12 @@
+- example: Pas exemple
+  getval: '.+ and Counters - VLAN Information - for ports (?P<port>\S+)'
+  result:
+    "{{ port }}":
+      port: "{{ port }}"
+  shared: true
+
+- example: Pas exemple
+  getval: '\W+(?P<vlan_id>[0-9]{0,4})\W+(?P<vlan_name>.+?(?=\s{2})).+?Port-based.+?(?P<type>Tagged|Untagged|Auto)'
+  result:
+    "{{ port }}":
+      "{{ vlan_id }}" : "{{ vlan_name }}"
